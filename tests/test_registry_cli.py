@@ -277,6 +277,52 @@ def test_cli_live_sink_order_flag_eval_set_threading_and_agent_tip(
         assert "each agent turn, notes, and operator/voice input, updating live" in out
 
 
+@pytest.mark.parametrize("command", ["run", "eval-set"])
+def test_show_transcript_appends_console_sink_on_run_and_eval_set(
+    command: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    import inspect_robots
+    from inspect_robots._console_transcript import ConsoleTranscriptSink
+
+    monkeypatch.setitem(reg._FACTORIES["policy"], "agent", ScriptedPolicy)
+    log = _step_limit_log(task="cubepick-reach", reasons=("success",))
+    found: list[ConsoleTranscriptSink] = []
+
+    def capture(kwargs: dict[str, object]) -> None:
+        sinks = kwargs["sinks"]
+        assert isinstance(sinks, list)
+        found.extend(s for s in sinks if isinstance(s, ConsoleTranscriptSink))
+        sinks[0].on_eval_end(log)
+
+    def fake_eval(*args: object, **kwargs: object) -> list[EvalLog]:
+        del args
+        capture(kwargs)
+        return [log]
+
+    def fake_eval_set(*args: object, **kwargs: object) -> tuple[bool, list[EvalLog]]:
+        del args
+        capture(kwargs)
+        return True, [log]
+
+    monkeypatch.setattr(inspect_robots, "eval", fake_eval)
+    monkeypatch.setattr(inspect_robots, "eval_set", fake_eval_set)
+    argv = (
+        ["run", "--task", "cubepick-reach"] if command == "run" else ["eval-set", "cubepick-reach"]
+    )
+    argv.extend(["--policy", "agent", "--embodiment", "cubepick", "--log-dir", str(tmp_path)])
+    argv.extend(["--show-transcript", "--no-live-log"])
+
+    assert main(argv) == 0
+
+    (sink,) = found
+    capsys.readouterr()
+    sink.log_policy_messages(4, [{"role": "assistant", "reasoning": "why", "content": "ok"}])
+    assert "  │ why" in capsys.readouterr().out
+
+
 @pytest.mark.parametrize(
     ("env", "platform", "expected"),
     [

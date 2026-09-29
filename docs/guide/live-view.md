@@ -41,6 +41,14 @@ replaces the transient running report.
 Pass `--no-live-log` to `run` or `eval-set` to disable transient snapshots. The
 final JSON log is still written normally.
 
+## In the terminal
+
+Pass `--show-transcript` to `run` or `eval-set` to print each policy turn in the
+terminal as it happens: the model's recorded reasoning, its reply, and its tool
+calls. On attended runs the lines scroll above the operator console's status and
+input rows, so typing feedback and ending episodes keep working. It needs no
+browser and works alongside `view --serve`.
+
 ## Stale running pages
 
 A force-killed process can leave a `*.live.json` snapshot behind. Its index row

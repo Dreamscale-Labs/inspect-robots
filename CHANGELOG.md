@@ -9,6 +9,10 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- **CLI:** `run --show-transcript` (and `eval-set`) prints each policy turn in the
+  terminal as the rollout runs: recorded reasoning, reply text, and tool calls,
+  written above the operator console's status and input rows.
+
 - **Agent plugin and core:** Record the readable reasoning a provider returns
   (Chat Completions `reasoning_content` or `reasoning`, Messages thinking text,
   Responses reasoning summaries) on each assistant turn under `reasoning`, and

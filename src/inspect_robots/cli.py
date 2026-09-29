@@ -62,6 +62,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, NoReturn, cast
 
 from inspect_robots import __version__
 from inspect_robots._claims import DeviceClaim, claim_devices
+from inspect_robots._console_transcript import ConsoleTranscriptSink
 from inspect_robots._dotenv import init_dotenv
 from inspect_robots._html import (
     _chat_content,
@@ -227,6 +228,12 @@ def _add_shared_eval_args(parser: argparse.ArgumentParser) -> None:
         help="pass an argument to the inspect-robots-voice input (requires --voice)",
     )
     parser.add_argument("--log-dir", default="logs")
+    parser.add_argument(
+        "--show-transcript",
+        action="store_true",
+        help="print each policy turn (recorded reasoning, reply, tool calls) in the "
+        "terminal as the run goes, above the operator console",
+    )
     parser.add_argument(
         "--no-live-log",
         action="store_true",
@@ -843,6 +850,16 @@ def _attended(args: argparse.Namespace) -> bool:
     ``eval-set`` — the same anti-drift argument as ``_add_shared_eval_args``.
     """
     return not args.no_prompt and sys.stdin.isatty()
+
+
+def _console_transcript_sink(
+    args: argparse.Namespace, operator_session: OperatorSession | None
+) -> ConsoleTranscriptSink | None:
+    """Build the ``--show-transcript`` sink, writing through the console when attended."""
+    if not args.show_transcript:
+        return None
+    write_line = operator_session.write_line if operator_session is not None else print
+    return ConsoleTranscriptSink(write_line, style=_styled)
 
 
 def _build_operator_session(
@@ -1740,6 +1757,9 @@ def _cmd_run(args: argparse.Namespace) -> int:
         if not args.no_live_log:
             live_sink = LiveLogSink(args.log_dir)
             sinks.append(live_sink)
+        transcript_sink = _console_transcript_sink(args, operator_session)
+        if transcript_sink is not None:
+            sinks.append(transcript_sink)
         save_wanted = args.rerun_save if args.rerun_save is not None else defaults.rerun_save
         if args.rerun_connect is not None:
             from inspect_robots.logging.rerun_sink import RerunSink
@@ -1925,6 +1945,9 @@ def _cmd_eval_set(args: argparse.Namespace) -> int:
         if not args.no_live_log:
             live_sink = LiveLogSink(args.log_dir)
             sinks.append(live_sink)
+        transcript_sink = _console_transcript_sink(args, operator_session)
+        if transcript_sink is not None:
+            sinks.append(transcript_sink)
         try:
             success, logs = eval_set(
                 tasks,
