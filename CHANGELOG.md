@@ -9,6 +9,13 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- **Agent plugin and core:** Record the readable reasoning a provider returns
+  (Chat Completions `reasoning_content` or `reasoning`, Messages thinking text,
+  Responses reasoning summaries) on each assistant turn under `reasoning`, and
+  show it in `inspect --transcript`, the HTML report and live view, Rerun, and
+  `transcript_echo`. Reasoning is never sent back to the model, so requests are
+  unchanged.
+
 - **Agent plugin:** Support `service_tier` on the Responses wire, including
   `-P service_tier=fast` for OpenAI Fast mode, with validation and saved configuration.
 

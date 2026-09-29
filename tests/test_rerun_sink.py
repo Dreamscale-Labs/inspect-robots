@@ -1336,6 +1336,18 @@ def test_sdk_without_text_document_keeps_transcript_rows(
             ("assistant", "INFO", "assistant: "),
         ),
         (
+            {"role": "assistant", "content": "moving", "reasoning": "cube is left"},
+            ("assistant", "INFO", "assistant: reasoning: cube is left\nmoving"),
+        ),
+        (
+            {"role": "assistant", "content": "moving", "reasoning": "  "},
+            ("assistant", "INFO", "assistant: moving"),
+        ),
+        (
+            {"role": "assistant", "content": "moving", "reasoning": ["not", "text"]},
+            ("assistant", "INFO", "assistant: moving"),
+        ),
+        (
             {
                 "role": "assistant",
                 "content": [],

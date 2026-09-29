@@ -726,6 +726,32 @@ def test_parse_response_filters_usage_to_non_bool_int_values() -> None:
     assert "usage" not in message.raw()
 
 
+def test_parse_response_records_readable_thinking_as_reasoning() -> None:
+    payload = _anthropic_response(
+        _thinking("first thought"),
+        {"type": "redacted_thinking", "data": "opaque"},
+        _thinking("   "),
+        {"type": "thinking", "thinking": None, "signature": "sig"},
+        _thinking("second thought"),
+        _text("moving"),
+        _tool_use(),
+    )
+
+    message = _parse_response(payload)
+
+    assert message.reasoning == "first thought\n\nsecond thought"
+    assert message.raw()["reasoning"] == "first thought\n\nsecond thought"
+
+
+def test_parse_response_without_readable_thinking_has_no_reasoning() -> None:
+    message = _parse_response(
+        _anthropic_response({"type": "redacted_thinking", "data": "opaque"}, _tool_use())
+    )
+
+    assert message.reasoning is None
+    assert "reasoning" not in message.raw()
+
+
 def test_parse_response_without_usage_keeps_it_none() -> None:
     message = _parse_response(_anthropic_response(_text("ok"), stop_reason="end_turn"))
 

@@ -207,6 +207,21 @@ def _sanitize(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return sanitized
 
 
+def _without_reasoning(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return an outgoing view with transcript-only ``reasoning`` keys removed.
+
+    Reasoning is recorded for human readers. Replaying it would change what
+    every wire sends, and strict servers reject unknown message fields, so it
+    stays out of requests. Messages without the key are shared, not copied.
+    """
+    return [
+        {key: value for key, value in message.items() if key != "reasoning"}
+        if "reasoning" in message
+        else message
+        for message in messages
+    ]
+
+
 def _evicted_view(
     messages: list[dict[str, Any]],
     horizon: int,
@@ -1004,7 +1019,7 @@ class LLMAgentPolicy(PolicyBase):
                     mark_anchor=isinstance(self._client, (AnthropicClient, ResponsesClient)),
                 )
             message = self._client.complete(
-                outgoing,
+                _without_reasoning(outgoing),
                 toolset.schemas(),
                 temperature=self._temperature,
                 reasoning_effort=self._effort,
@@ -1021,6 +1036,8 @@ class LLMAgentPolicy(PolicyBase):
                 )
             raw_message = message.raw()
             self._messages.append(raw_message)
+            if message.reasoning:
+                self._echo(f"[agent] ~~ reasoning: {message.reasoning}")
             content = raw_message.get("content")
             if isinstance(content, str) and content:
                 self._echo(f"[agent] << {content}")

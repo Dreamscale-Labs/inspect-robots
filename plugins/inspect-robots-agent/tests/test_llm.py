@@ -364,6 +364,36 @@ def test_parse_message_preserves_tool_call_extra_content() -> None:
     assert tool_call["extra_content"] == extra_content
 
 
+@pytest.mark.parametrize("key", ["reasoning_content", "reasoning"])
+def test_parse_message_records_readable_reasoning(key: str) -> None:
+    payload = _tool_call_response()
+    payload["choices"][0]["message"][key] = "the cube is to the left"
+
+    message = llm_module._parse_message(payload)
+
+    assert message.reasoning == "the cube is to the left"
+    assert message.raw()["reasoning"] == "the cube is to the left"
+
+
+def test_parse_message_prefers_reasoning_content_over_reasoning() -> None:
+    payload = _tool_call_response()
+    payload["choices"][0]["message"]["reasoning_content"] = "deepseek field"
+    payload["choices"][0]["message"]["reasoning"] = "openrouter field"
+
+    assert llm_module._parse_message(payload).reasoning == "deepseek field"
+
+
+@pytest.mark.parametrize("value", [None, "", "  \n", 3, ["text"]])
+def test_parse_message_ignores_blank_or_malformed_reasoning(value: object) -> None:
+    payload = _tool_call_response()
+    payload["choices"][0]["message"]["reasoning_content"] = value
+
+    message = llm_module._parse_message(payload)
+
+    assert message.reasoning is None
+    assert "reasoning" not in message.raw()
+
+
 def test_parse_message_omits_absent_tool_call_extra_content() -> None:
     message = llm_module._parse_message(_tool_call_response())
 

@@ -67,6 +67,7 @@ from inspect_robots._html import (
     _chat_content,
     _display_status,
     _is_chat_transcript,
+    _message_reasoning,
     _status_class,
     render_html,
 )
@@ -1173,6 +1174,9 @@ def _render_chat_transcript(transcript: list[object]) -> None:
             suffix = "" if content is None else f" {content}"
             _print_degraded(f"        tool:{suffix}")
             continue
+        reasoning = _message_reasoning(raw_message)
+        if reasoning is not None:
+            _print_degraded(f"    {role} reasoning: {reasoning}")
         suffix = "" if content is None else f" {content}"
         _print_degraded(f"    {role}:{suffix}")
         tool_calls = raw_message.get("tool_calls")

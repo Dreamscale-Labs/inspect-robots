@@ -192,10 +192,16 @@ class AssistantMessage:
     content: str | None
     tool_calls: tuple[ToolCall, ...]
     usage: dict[str, int] | None = None
+    #: Readable model reasoning the provider returned alongside the turn, if any.
+    #: Recorded in the transcript under ``reasoning`` for humans; the policy
+    #: strips it from outgoing requests, so it never changes what a wire sends.
+    reasoning: str | None = None
 
     def raw(self) -> dict[str, Any]:
         """The wire-format dict to append back onto the conversation."""
         message: dict[str, Any] = {"role": "assistant", "content": self.content}
+        if self.reasoning:
+            message["reasoning"] = self.reasoning
         if self.tool_calls:
             message["tool_calls"] = [
                 {
@@ -354,4 +360,21 @@ def _parse_message(payload: dict[str, Any]) -> AssistantMessage:
         for c in message.get("tool_calls") or []
     )
     content = message.get("content")
-    return AssistantMessage(content=content if content is None else str(content), tool_calls=calls)
+    return AssistantMessage(
+        content=content if content is None else str(content),
+        tool_calls=calls,
+        reasoning=_chat_reasoning(message),
+    )
+
+
+def _chat_reasoning(message: dict[str, Any]) -> str | None:
+    """Return the readable reasoning a Chat Completions server attached, if any.
+
+    DeepSeek, vLLM, and SGLang name the field ``reasoning_content``; OpenRouter
+    names it ``reasoning``. Anything that is not a nonempty string is ignored.
+    """
+    for key in ("reasoning_content", "reasoning"):
+        value = message.get(key)
+        if isinstance(value, str) and value.strip():
+            return value
+    return None

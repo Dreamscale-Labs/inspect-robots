@@ -1186,6 +1186,31 @@ def test_transcript_echo_defaults_off(capsys: pytest.CaptureFixture[str]) -> Non
     assert capsys.readouterr().err == ""
 
 
+def test_reasoning_is_recorded_and_echoed_but_never_sent_back(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    thinking = _text_response("Let me look first.")
+    thinking["choices"][0]["message"]["reasoning_content"] = "The cube is left of the gripper."
+    script = _Script([thinking, _tool_response("done", {"summary": "ok"})])
+    policy = _policy(script, transcript_echo=True)
+    policy.bind(CubePickEmbodiment().info)
+    policy.reset(Scene(id="s0", instruction="inspect the cube"))
+
+    policy.act(Observation(state={"eef_pos": np.array([0.1, 0.2])}, extra={"env_step": 0}))
+
+    assert len(script.requests) == 2
+    replayed = [m for m in script.requests[1]["messages"] if m["role"] == "assistant"]
+    assert replayed[0]["content"] == "Let me look first."
+    assert all("reasoning" not in message for message in script.requests[1]["messages"])
+    transcript = policy.transcript()
+    assert transcript is not None
+    (first_turn, *_) = [m for m in transcript if m["role"] == "assistant"]
+    assert first_turn["reasoning"] == "The cube is left of the gripper."
+    lines = capsys.readouterr().err.splitlines()
+    reasoning_line = "[agent] ~~ reasoning: The cube is left of the gripper."
+    assert lines.index(reasoning_line) < lines.index("[agent] << Let me look first.")
+
+
 def test_transcript_echo_reports_conversation_in_order(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

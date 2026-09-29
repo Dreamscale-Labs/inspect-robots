@@ -3800,6 +3800,23 @@ def test_inspect_transcript_renders_chat_and_unknown_shapes_after_summary(
     assert '  "custom": [' in out
 
 
+def test_inspect_transcript_prints_recorded_reasoning_before_the_turn(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    data = _transcript_log().to_dict()
+    assistant = data["samples"][0]["policy_transcripts"][0][1]
+    assistant["reasoning"] = "the cube sits left of the gripper"
+    path = tmp_path / "reasoning.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    assert main(["inspect", str(path), "--transcript"]) == 0
+
+    out = capsys.readouterr().out
+    line = "    assistant reasoning: the cube sits left of the gripper\n    assistant:\n"
+    assert line in out
+    assert out.index(line) < out.index('-> move_by({"dx": 0.1})')
+
+
 def test_inspect_transcript_keeps_error_status_exit_code(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

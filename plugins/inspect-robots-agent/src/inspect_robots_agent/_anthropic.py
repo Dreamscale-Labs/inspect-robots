@@ -470,11 +470,18 @@ def _parse_response(payload: dict[str, Any]) -> AssistantMessage:
         raise RuntimeError(_terminal_message(payload, stop_reason))
 
     texts: list[str] = []
+    thoughts: list[str] = []
     calls: list[ToolCall] = []
     for block in payload.get("content") or []:
         block_type = block.get("type")
         if block_type == "text":
             texts.append(str(block["text"]))
+        elif block_type == "thinking":
+            # Replay uses the raw block cache; this copy is for human readers.
+            # Redacted or display-omitted thinking has no readable text.
+            thought = block.get("thinking")
+            if isinstance(thought, str) and thought.strip():
+                thoughts.append(thought)
         elif block_type == "tool_use":
             calls.append(
                 ToolCall(
@@ -483,7 +490,6 @@ def _parse_response(payload: dict[str, Any]) -> AssistantMessage:
                     arguments=json.dumps(block["input"]),
                 )
             )
-        # thinking blocks matter only to the replay cache, not to the turn.
     joined = "".join(texts)
     raw_usage = payload.get("usage")
     usage = (
@@ -497,7 +503,12 @@ def _parse_response(payload: dict[str, Any]) -> AssistantMessage:
     )
     # Never "": it would round-trip into the next request as an empty text
     # block, which is a 400.
-    return AssistantMessage(content=joined or None, tool_calls=tuple(calls), usage=usage)
+    return AssistantMessage(
+        content=joined or None,
+        tool_calls=tuple(calls),
+        usage=usage,
+        reasoning="\n\n".join(thoughts) or None,
+    )
 
 
 def _terminal_message(payload: dict[str, Any], stop_reason: Any) -> str:

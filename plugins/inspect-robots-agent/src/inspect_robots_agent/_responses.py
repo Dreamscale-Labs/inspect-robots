@@ -328,12 +328,20 @@ def _parse_response(payload: dict[str, Any]) -> tuple[AssistantMessage, list[dic
 
     output = cast(list[dict[str, Any]], payload["output"])
     texts: list[str] = []
+    thoughts: list[str] = []
     calls: list[ToolCall] = []
     for item in output:
         if item.get("type") == "message":
             for part in item.get("content") or []:
                 if part.get("type") == "output_text":
                     texts.append(str(part["text"]))
+        elif item.get("type") == "reasoning":
+            # Summaries (OpenAI) and raw reasoning text (open-weight servers)
+            # are readable; encrypted content is replay-only and never shown.
+            for part in [*(item.get("summary") or []), *(item.get("content") or [])]:
+                text = part.get("text") if isinstance(part, dict) else None
+                if isinstance(text, str) and text.strip():
+                    thoughts.append(text)
         elif item.get("type") == "function_call":
             calls.append(
                 ToolCall(
@@ -343,6 +351,10 @@ def _parse_response(payload: dict[str, Any]) -> tuple[AssistantMessage, list[dic
                 )
             )
     return (
-        AssistantMessage(content="".join(texts) if texts else None, tool_calls=tuple(calls)),
+        AssistantMessage(
+            content="".join(texts) if texts else None,
+            tool_calls=tuple(calls),
+            reasoning="\n\n".join(thoughts) or None,
+        ),
         output,
     )

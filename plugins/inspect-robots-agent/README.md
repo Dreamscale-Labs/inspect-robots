@@ -350,6 +350,16 @@ The speed fraction defaults to `0.1` and applies only to absolute modes.
 Camera labels such as `camera 'top_cam' (step 480):` provide the join key from a transcript observation to its stored frame.
 Live Rerun transcript streaming happens automatically when a Rerun sink is attached.
 
+Model reasoning is recorded when the provider returns it in readable form:
+`reasoning_content` or `reasoning` on the chat wire (DeepSeek, vLLM, SGLang,
+OpenRouter), thinking text on the messages wire, and reasoning summaries or
+reasoning text on the responses wire. Each assistant turn keeps it under a
+`reasoning` key, and `inspect-robots inspect LOG.json --transcript`, the HTML
+report and live view, Rerun, and `-P transcript_echo=true` all show it before
+the turn's reply. Encrypted or redacted reasoning is never shown. Recorded
+reasoning is stripped from every outgoing request, so it does not change what
+the model sees or what a wire sends.
+
 Wire capture is on by default (`-P wire_capture=false` to disable): every
 request attempt each wire client sends (tool schemas, evicted view, depth
 composites, and cache breakpoints) and every response land in

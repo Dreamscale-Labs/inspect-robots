@@ -18,7 +18,11 @@ from inspect_robots.types import Observation
 from inspect_robots_agent import LLMAgentPolicy
 from inspect_robots_agent._capture import WireCapture
 from inspect_robots_agent._llm import Provider
-from inspect_robots_agent._responses import ResponsesClient, _translate_content_parts
+from inspect_robots_agent._responses import (
+    ResponsesClient,
+    _parse_response,
+    _translate_content_parts,
+)
 from inspect_robots_agent.policy import AgentPolicyConfig, _evicted_view
 
 
@@ -890,6 +894,31 @@ def test_parses_response_output(
 
     assert result.content == content
     assert [(call.id, call.name, call.arguments) for call in result.tool_calls] == calls
+
+
+def test_parser_records_reasoning_summaries_and_text_but_not_encrypted_content() -> None:
+    reasoning = {
+        "id": "rs_1",
+        "type": "reasoning",
+        "encrypted_content": "opaque",
+        "summary": [{"type": "summary_text", "text": "check the gripper"}, "malformed"],
+        "content": [{"type": "reasoning_text", "text": "cube is left"}, {"type": "x"}],
+    }
+    blank = {"id": "rs_2", "type": "reasoning", "summary": [{"text": "  "}]}
+
+    message, _ = _parse_response(_response(reasoning, blank, _message("moving"), _call()))
+
+    assert message.reasoning == "check the gripper\n\ncube is left"
+    assert "opaque" not in message.raw()["reasoning"]
+
+
+def test_parser_without_readable_reasoning_has_none() -> None:
+    encrypted_only = {"id": "rs_1", "type": "reasoning", "encrypted_content": "opaque"}
+    unrelated = {"id": "ws_1", "type": "web_search_call"}
+
+    message, _ = _parse_response(_response(encrypted_only, unrelated, _call()))
+
+    assert message.reasoning is None
 
 
 def test_parser_concatenates_only_output_text_parts() -> None:

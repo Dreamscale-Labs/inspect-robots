@@ -437,6 +437,9 @@ img.frame {
   border-left: 3px solid var(--system);
 }
 .system-message summary { color: var(--muted); }
+.reasoning { margin-top: 3px; color: var(--muted); }
+.reasoning summary { font-size: 12px; cursor: pointer; }
+.reasoning .content { font-size: 13px; }
 .call {
   margin-top: 8px; overflow-wrap: anywhere;
   font: 13px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
@@ -519,6 +522,30 @@ def _chat_content(content: object) -> str | None:
         else:
             parts.append("[image]")
     return "\n".join(parts)
+
+
+def _message_reasoning(raw_message: dict[str, Any]) -> str | None:
+    """Return a chat message's readable model reasoning, if it recorded any.
+
+    Agent policies record provider reasoning under a ``reasoning`` string key
+    beside ``content``. Other shapes are foreign data and render as absent.
+    """
+    reasoning = raw_message.get("reasoning")
+    if isinstance(reasoning, str) and reasoning.strip():
+        return reasoning
+    return None
+
+
+def _render_reasoning(raw_message: dict[str, Any], *, expanded: bool) -> str:
+    """Render recorded reasoning as a collapsible block, or nothing when absent."""
+    reasoning = _message_reasoning(raw_message)
+    if reasoning is None:
+        return ""
+    open_attr = " open" if expanded else ""
+    return (
+        f'<details class="reasoning"{open_attr}><summary>reasoning</summary>'
+        f'<div class="content">{_escape(reasoning)}</div></details>'
+    )
 
 
 def _is_chat_transcript(transcript: object) -> bool:
@@ -913,6 +940,7 @@ def _render_visible_message(raw_message: object) -> str:
     if role == "tool":
         return ""
     body = "" if content is None else f'<div class="content">{_escape(content)}</div>'
+    body = _render_reasoning(raw_message, expanded=True) + body
     calls = ""
     tool_calls = raw_message.get("tool_calls")
     if isinstance(tool_calls, list):
@@ -951,6 +979,7 @@ def _render_raw_message(raw_message: object) -> str:
     else:
         content = _chat_content(content_value)
     body = "" if content is None else f'<div class="content">{_escape(content)}</div>'
+    body = _render_reasoning(raw_message, expanded=False) + body
     calls = ""
     tool_calls = raw_message.get("tool_calls")
     if isinstance(tool_calls, list):

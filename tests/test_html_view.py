@@ -439,6 +439,43 @@ def test_chat_roles_system_details_tool_call_and_result_are_rendered() -> None:
     assert "moved 2 steps" in document
 
 
+def test_assistant_reasoning_renders_open_in_turn_and_collapsed_in_raw_transcript() -> None:
+    transcript = _chat(
+        {"role": "user", "content": "where is the cube?"},
+        {
+            "role": "assistant",
+            "content": "moving now",
+            "reasoning": "the cube is <left> of the gripper",
+            "tool_calls": [
+                {"function": {"name": "move_by", "arguments": '{"dx": 0.1}'}},
+            ],
+        },
+    )
+
+    document = render_html(_log(transcripts=(transcript,)), title="reasoning")
+
+    escaped = "the cube is &lt;left&gt; of the gripper"
+    assert (
+        '<details class="reasoning" open><summary>reasoning</summary>'
+        f'<div class="content">{escaped}</div></details>'
+    ) in document
+    assert (
+        '<details class="reasoning"><summary>reasoning</summary>'
+        f'<div class="content">{escaped}</div></details>'
+    ) in document
+    assert document.index(escaped) < document.index("moving now")
+
+
+@pytest.mark.parametrize("reasoning", ["", "   ", 7, ["text"], None])
+def test_blank_or_malformed_reasoning_renders_nothing(reasoning: object) -> None:
+    transcript = _chat({"role": "assistant", "content": "moving now", "reasoning": reasoning})
+
+    document = render_html(_log(transcripts=(transcript,)), title="no reasoning")
+
+    assert 'class="reasoning"' not in document
+    assert "moving now" in document
+
+
 @pytest.mark.parametrize(
     ("name", "arguments", "expected"),
     [

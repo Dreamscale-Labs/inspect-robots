@@ -88,6 +88,9 @@ def _render_message(message: Any) -> tuple[str, str, str]:
         "tool": "DEBUG",
     }.get(role, "TRACE")
     lines: list[str] = []
+    reasoning = message.get("reasoning")
+    if isinstance(reasoning, str) and reasoning.strip():
+        lines.append(f"reasoning: {reasoning}")
     content = message.get("content")
     if isinstance(content, str) and content:
         lines.append(content)
